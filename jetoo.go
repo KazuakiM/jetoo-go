@@ -1,54 +1,40 @@
-//go:generate go get gopkg.in/yaml.v2
-//go:generate go run maint/gendataset.go
-package woothee
+package jetoo
 
 import (
-	"errors"
+	"net/url"
+	"strconv"
 )
 
-type Result struct {
-	Name      string `json:"name"`
-	Category  string `json:"category"`
-	Os        string `json:"os"`
-	OsVersion string `json:"os_version"`
-	Type      string `json:"type"`
-	Version   string `json:"version"`
-	Vendor    string `json:"vendor"`
+func Parse(rawurl string) DataSet {
+	return fillResult(execParse(rawurl))
 }
 
-type DataSet map[string]*Result
-
-const (
-	ValueUnknown        = "UNKNOWN"
-	CategoryPC          = "pc"
-	CategorySmartphone  = "smartphone"
-	CategoryMobilephone = "mobilephone"
-	CategoryAppliance   = "appliance"
-	CategoryCrawler     = "crawler"
-	CategoryMisc        = "misc"
-)
-
-var (
-	EmptyResult = &Result{
-		Name:      ValueUnknown,
-		Category:  ValueUnknown,
-		Os:        ValueUnknown,
-		OsVersion: ValueUnknown,
-		Type:      ValueUnknown,
-		Version:   ValueUnknown,
-		Vendor:    ValueUnknown,
+func execParse(rawurl string) (result DataSet) {
+	u, err := url.Parse(rawurl)
+	if err != nil {
+		return
 	}
-	ErrNoMatch    = errors.New("no match")
-	ErrNoDataSet  = errors.New("no such dataset")
-	DefaultParser = NewParser()
-)
 
-func (r *Result) Clone() *Result {
-	return &Result{r.Name, r.Category, r.Os, r.OsVersion, r.Type, r.Version, r.Vendor}
+	pass, _ := u.User.Password()
+
+	port, err := strconv.Atoi(u.Port())
+	if err != nil {
+		return
+	}
+
+	result = DataSet{
+		Scheme:   u.Scheme,
+		Host:     u.Hostname(),
+		Port:     port,
+		User:     u.User.Username(),
+		Pass:     pass,
+		Path:     u.Path,
+		Query:    u.RawQuery,
+		Fragment: u.Fragment,
+	}
+	return
 }
 
-// Parse parses the given agent string, and returns a Result struct or
-// an error if any
-func Parse(agent string) (*Result, error) {
-	return DefaultParser.Parse(agent)
+func fillResult(result DataSet) DataSet {
+	return result
 }
